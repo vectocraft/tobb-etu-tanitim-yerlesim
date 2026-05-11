@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TOBB ETÜ – Yerleşim Planı</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#d4dce6;display:flex;flex-direction:column}
+
+/* ── TOOLBAR ── */
+#toolbar{
+  flex-shrink:0;display:flex;align-items:center;gap:5px;
+  padding:7px 12px;background:#fff;
+  border-bottom:1px solid #d0d7de;flex-wrap:wrap;
+  box-shadow:0 1px 4px rgba(0,0,0,.07);z-index:50;position:relative;
+}
+#toolbar .title{font-weight:800;font-size:13.5px;color:#00205b;margin-right:2px;letter-spacing:-.2px;white-space:nowrap}
+#toolbar button{
+  font-size:11px;padding:4px 10px;border-radius:6px;
+  border:1px solid #c8cfd8;background:#f4f6f8;
+  color:#2c3e50;cursor:pointer;white-space:nowrap;
+}
+#toolbar button:hover{background:#e8edf2}
+#toolbar button.primary{background:#00205b;color:#fff;border-color:#00205b}
+#toolbar button.primary:hover{background:#001540}
+#toolbar button.danger{background:#fff0f0;color:#c0392b;border-color:#f5c6c6}
+#toolbar button.danger:hover{background:#fde2e2}
+#toolbar button.success{background:#f0faf4;color:#1a7a40;border-color:#b2dfc4}
+#toolbar button.success:hover{background:#d8f5e5}
+#toolbar button.align-btn{font-size:13px;padding:3px 8px;min-width:28px}
+#toolbar button.align-btn:hover{background:#e8edf2}
+#toolbar button[disabled]{opacity:.35;cursor:default;pointer-events:none}
+#toolbar .sep{width:1px;height:22px;background:#d0d7de;margin:0 2px;flex-shrink:0}
+#toolbar .group-label{font-size:10px;color:#999;white-space:nowrap;font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+#save-msg{font-size:11px;color:#1a7a40;opacity:0;transition:opacity .4s;font-weight:600;white-space:nowrap}
+#save-msg.show{opacity:1}
+.mode-badge{font-size:10px;padding:3px 9px;border-radius:20px;font-weight:700;white-space:nowrap}
+.mode-badge.drag-mode{background:#dceeff;color:#0055aa}
+.mode-badge.delete-mode{background:#fde8e8;color:#c0392b}
+.mode-badge.select-mode{background:#fff4cc;color:#7a5800}
+.size-ctrl{display:flex;align-items:center;gap:4px;font-size:11px;color:#555}
+.size-ctrl label{white-space:nowrap}
+.size-ctrl input[type=range]{width:65px;accent-color:#00205b;cursor:pointer}
+.size-ctrl span{font-size:10.5px;color:#00205b;font-weight:700;min-width:26px}
+#sel-count{font-size:10.5px;color:#7a5800;font-weight:700;background:#fff4cc;padding:2px 8px;border-radius:12px;display:none}
+#sel-count.show{display:inline-block}
+
+/* ── VIEWPORT ── */
+#viewport{flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative}
+#scale-wrap{position:absolute;transform-origin:top left}
+
+/* ── LEGEND ── */
+#legend-bar{flex-shrink:0;display:flex;flex-wrap:wrap;gap:6px;padding:5px 12px;background:#fff;border-top:1px solid #d0d7de}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:10px;color:#555}
+.legend-dot{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+
+/* ── HALL WRAP ── */
+#hall-wrap{position:relative;background:#bec8d2}
+
+/* ── HALL ── */
+#hall{position:relative;background:#fff;border:3px solid #2c3e50;border-radius:2px;overflow:visible}
+
+/* selection rubber-band */
+#sel-rect{
+  position:absolute;border:2px dashed #f0a800;background:rgba(240,168,0,.1);
+  pointer-events:none;z-index:200;display:none;
+}
+
+/* ── DESKS ── */
+.desk{
+  position:absolute;color:#fff;font-weight:700;text-align:center;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:6px;padding:4px;user-select:none;z-index:2;
+  transition:box-shadow .12s,transform .1s;cursor:grab;
+}
+.desk:hover{box-shadow:0 4px 14px rgba(0,0,0,.22)}
+.desk.dragging{cursor:grabbing;z-index:100;opacity:.85;transform:scale(1.04)}
+.desk.selected{outline:3px solid #f0a800;outline-offset:2px;z-index:3}
+.desk.delete-target:hover{outline:3px dashed #e31837;cursor:pointer;transform:scale(.97)}
+
+/* ── DOORS ── */
+.door{
+  position:absolute;z-index:10;cursor:grab;user-select:none;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;letter-spacing:.3px;border-radius:4px;transition:box-shadow .15s;
+}
+.door:hover{box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.door.dragging{cursor:grabbing;z-index:200;opacity:.9}
+.door.delete-target:hover{outline:3px dashed #e31837;cursor:pointer}
+.door-h{writing-mode:horizontal-tb}
+.door-v{writing-mode:vertical-rl}
+.door-main{background:#e31837;color:#fff}
+.door-side{background:#00205b;color:#fff}
+
+/* ── MODAL ── */
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center}
+#modal-overlay.open{display:flex}
+#modal{background:#fff;border-radius:12px;padding:22px;width:310px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+#modal h3{font-size:14px;color:#00205b;margin-bottom:14px}
+#modal label{font-size:11.5px;color:#555;display:block;margin-bottom:3px}
+#modal input,#modal select{width:100%;padding:6px 10px;border:1px solid #c8cfd8;border-radius:7px;font-size:13px;margin-bottom:11px;color:#2c3e50}
+#modal .modal-btns{display:flex;gap:8px;justify-content:flex-end}
+#modal .modal-btns button{font-size:13px;padding:5px 14px;border-radius:7px;border:1px solid #c8cfd8;background:#f4f6f8;cursor:pointer}
+#modal .modal-btns button.ok{background:#00205b;color:#fff;border-color:#00205b}
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <span class="title">TOBB ETÜ Yerleşim Planı</span>
+  <div class="sep"></div>
+
+  <!-- MOD BUTONLARI -->
+  <button onclick="setMode('drag')"   id="btn-drag">✥ Taşı</button>
+  <button onclick="setMode('select')" id="btn-select">▣ Seç</button>
+  <button onclick="setMode('delete')" id="btn-delete" class="danger">🗑 Sil</button>
+  <span id="sel-count">0 seçili</span>
+
+  <div class="sep"></div>
+
+  <!-- HİZALAMA -->
+  <span class="group-label">Hizala</span>
+  <button class="align-btn" id="ab-left"    onclick="align('left')"    title="Sol kenara hizala">⬢←</button>
+  <button class="align-btn" id="ab-hcenter" onclick="align('hcenter')" title="Yatayda ortala">⬢↔</button>
+  <button class="align-btn" id="ab-right"   onclick="align('right')"   title="Sağ kenara hizala">→⬢</button>
+  <button class="align-btn" id="ab-top"     onclick="align('top')"     title="Üst kenara hizala">⬢↑</button>
+  <button class="align-btn" id="ab-vcenter" onclick="align('vcenter')" title="Dikeyde ortala">⬢↕</button>
+  <button class="align-btn" id="ab-bottom"  onclick="align('bottom')"  title="Alt kenara hizala">↓⬢</button>
+
+  <div class="sep"></div>
+  <span class="group-label">Dağıt</span>
+  <button class="align-btn" id="ab-hdist" onclick="align('hdist')" title="Yatayda eşit aralık">↔⬢↔</button>
+  <button class="align-btn" id="ab-vdist" onclick="align('vdist')" title="Dikeyde eşit aralık">↕⬢↕</button>
+
+  <div class="sep"></div>
+
+  <!-- EKLE -->
+  <button onclick="openAddDeskModal()">+ Masa</button>
+  <button onclick="addDoor('side')">+ Yan Kapı</button>
+  <button onclick="addDoor('main')">+ Ana Giriş</button>
+
+  <div class="sep"></div>
+
+  <!-- SALON BOYUTU -->
+  <div class="size-ctrl">
+    <label>En:</label>
+    <input type="range" id="sw" min="600" max="1800" step="20" value="800" oninput="onSizeChange()">
+    <span id="sw-val">800</span>
+  </div>
+  <div class="size-ctrl">
+    <label>Boy:</label>
+    <input type="range" id="sh" min="400" max="1200" step="20" value="560" oninput="onSizeChange()">
+    <span id="sh-val">560</span>
+  </div>
+
+  <div class="sep"></div>
+  <button onclick="resetLayout()">↺ Sıfırla</button>
+  <button id="btn-undo" onclick="undo()" title="Geri Al (Ctrl+Z)" disabled>↩ Geri Al</button>
+  <button id="btn-redo" onclick="redo()" title="Yinele (Ctrl+Y)" disabled>↪ Yinele</button>
+  <button class="success" onclick="saveAsHTML()">💾 Kaydet</button>
+  <span id="save-msg">✓ Kaydedildi!</span>
+  <span class="mode-badge drag-mode" id="mode-label">Taşıma</span>
+</div>
+
+<div id="viewport">
+  <div id="scale-wrap">
+    <div id="hall-wrap">
+      <div id="hall">
+        <div id="sel-rect"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="legend-bar"></div>
+
+<!-- MODAL -->
+<div id="modal-overlay">
+  <div id="modal">
+    <h3>Yeni Masa Ekle</h3>
+    <label>Masa Adı</label>
+    <input type="text" id="modal-name" placeholder="ör. Felsefe">
+    <label>Fakülte / Renk</label>
+    <select id="modal-fac">
+      <option value="lit">Fen Edebiyat (Mor)</option>
+      <option value="law">Hukuk Fakültesi (Kırmızı-Koyu)</option>
+      <option value="iibf">İİBF (Yeşil)</option>
+      <option value="arch">Mimarlık ve Tasarım (Turuncu)</option>
+      <option value="med">Tıp Fakültesi (Teal)</option>
+      <option value="eng">Mühendislik (Mavi)</option>
+      <option value="lang">Yabancı Dil (Gri)</option>
+    </select>
+    <div class="modal-btns">
+      <button onclick="closeModal()">İptal</button>
+      <button class="ok" onclick="confirmAddDesk()">Ekle</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══ CONSTANTS ═══ */
+const PAD=44, DW=100, DH=60, DFONT=11;
+const DOOR_H_W=90,DOOR_H_H=26,DOOR_V_W=26,DOOR_V_H=84,DOOR_FONT=9.5;
+
+const COLORS={
+  eng:{bg:'#2980b9',label:'Mühendislik'},
+  iibf:{bg:'#27ae60',label:'İİBF'},
+  arch:{bg:'#f39c12',label:'Mimarlık ve Tasarım'},
+  lit:{bg:'#8e44ad',label:'Fen Edebiyat'},
+  law:{bg:'#c0392b',label:'Hukuk Fakültesi'},
+  med:{bg:'#16a085',label:'Tıp Fakültesi'},
+  lang:{bg:'#7f8c8d',label:'Yabancı Dil'},
+};
+
+const DEFAULT_DESKS = [
+  // Fen Edebiyat — alfabetik: İngiliz Dili, Psikoloji, Tarih, Türk Dili
+  {id:'d1', label:'İngiliz Dili', fac:'lit',  x:20,  y:14 },
+  {id:'d2', label:'Psikoloji',    fac:'lit',  x:132, y:14 },
+  {id:'d3', label:'Tarih',        fac:'lit',  x:244, y:14 },
+  {id:'d4', label:'Türk Dili',    fac:'lit',  x:356, y:14 },
+  // Mimarlık ve Tasarım — alfabetik: End. Tasarım, Görsel İlet., İç Mimarlık, Mimarlık
+  {id:'d7', label:'End. Tasarım', fac:'arch', x:468, y:14 },
+  {id:'d8', label:'Görsel İlet.', fac:'arch', x:580, y:14 },
+  {id:'d6', label:'İç Mimarlık',  fac:'arch', x:692, y:14 },
+  {id:'d5', label:'Mimarlık',     fac:'arch', x:804, y:14 },
+  // Tıp Fakültesi
+  {id:'d9', label:'Tıp Fak.',     fac:'med',  x:20,  y:240},
+  // Yabancı Dil
+  {id:'d10',label:'Yabancı Dil',  fac:'lang', x:20,  y:315},
+  // İİBF — alfabetik: İktisat, İşletme, Siyaset Bil., Ulus. Girişim, Yön. Bil. Sis
+  {id:'d12',label:'İktisat',      fac:'iibf', x:1012,y:100},
+  {id:'d11',label:'İşletme',      fac:'iibf', x:1012,y:174},
+  {id:'d13',label:'Siyaset Bil.', fac:'iibf', x:1012,y:248},
+  {id:'d14',label:'Ulus. Girişim',fac:'iibf', x:1012,y:322},
+  {id:'d15',label:'Yön. Bil. Sis',fac:'iibf', x:1012,y:396},
+  // Mühendislik — alfabetik: Bilgisayar M., Biyomedikal, Elektronik, Endüstri M., Makine M., Malzeme M., Yapay Zeka
+  {id:'d16',label:'Bilgisayar M.',fac:'eng',  x:20,  y:614},
+  {id:'d21',label:'Biyomedikal',  fac:'eng',  x:132, y:614},
+  {id:'d20',label:'Elektronik',   fac:'eng',  x:244, y:614},
+  {id:'d18',label:'Endüstri M.',  fac:'eng',  x:356, y:614},
+  {id:'d19',label:'Makine M.',    fac:'eng',  x:468, y:614},
+  {id:'d22',label:'Malzeme M.',   fac:'eng',  x:580, y:614},
+  {id:'d17',label:'Yapay Zeka',   fac:'eng',  x:692, y:614},
+  // Hukuk Fakültesi
+  {id:'d23',label:'HUKUK FAK.',   fac:'law',  x:1012,y:614},
+];
+
+const DEFAULT_DOORS = [
+  {id:'door-main', label:'ANA GİRİŞ',type:'main',wall:'left',  pct:.5},
+  {id:'door-s1',   label:'YAN KAPI', type:'side',wall:'top',   pct:.5},
+  {id:'door-s2',   label:'YAN KAPI', type:'side',wall:'right', pct:.5},
+  {id:'door-s3',   label:'YAN KAPI', type:'side',wall:'bottom',pct:.5},
+];
+
+/* ═══ STATE ═══ */
+let desks=[], doors=[], mode='drag';
+let selected=new Set(); // desk id'leri
+let dragging=null, dragType=null, offsetX=0, offsetY=0;
+// group drag: seçili masaların başlangıç konumları
+let groupStart=null;
+// rubber-band
+let rubber=null; // {sx,sy} hall design coords
+let HALL_W=800, HALL_H=560, scale=1;
+
+/* ═══ UNDO / REDO ═══ */
+let undoStack=[], redoStack=[];
+const MAX_HISTORY=60;
+
+function snapshotState(){
+  return {
+    desks: desks.map(d=>({id:d.id,label:d.label,fac:d.fac,x:parseInt(d.el.style.left),y:parseInt(d.el.style.top)})),
+    doors: doors.map(d=>({id:d.id,label:d.label,type:d.type,wall:d.wall,pct:d.pct})),
+    HALL_W, HALL_H
+  };
+}
+
+function pushUndo(){
+  undoStack.push(snapshotState());
+  if(undoStack.length>MAX_HISTORY) undoStack.shift();
+  redoStack=[];
+  updateUndoButtons();
+}
+
+function applySnapshot(snap){
+  document.getElementById('hall').innerHTML='<div id="sel-rect"></div>';
+  desks=[]; doors=[]; selected=new Set();
+  HALL_W=snap.HALL_W; HALL_H=snap.HALL_H;
+  document.getElementById('sw').value=HALL_W;
+  document.getElementById('sh').value=HALL_H;
+  document.getElementById('sw-val').textContent=HALL_W;
+  document.getElementById('sh-val').textContent=HALL_H;
+  reBindHall();
+  init(snap.desks, snap.doors);
+  applyScale();
+  doors.forEach(d=>applyDoorPos(d.el,d));
+  updateAlignButtons();
+  updateUndoButtons();
+}
+
+function undo(){
+  if(!undoStack.length) return;
+  redoStack.push(snapshotState());
+  applySnapshot(undoStack.pop());
+}
+
+function redo(){
+  if(!redoStack.length) return;
+  undoStack.push(snapshotState());
+  applySnapshot(redoStack.pop());
+}
+
+function updateUndoButtons(){
+  const bu=document.getElementById('btn-undo');
+  const br=document.getElementById('btn-redo');
+  if(bu) bu.disabled=undoStack.length===0;
+  if(br) br.disabled=redoStack.length===0;
+}
+
+/* ═══ SCALE ═══ */
+function applyScale(){
+  const vp=document.getElementById('viewport');
+  const vw=vp.clientWidth, vh=vp.clientHeight;
+  const tw=HALL_W+PAD*2, th=HALL_H+PAD*2;
+  scale=Math.max(.15,Math.min((vw*.96)/tw,(vh*.96)/th));
+  const wrap=document.getElementById('scale-wrap');
+  wrap.style.width=tw+'px'; wrap.style.height=th+'px';
+  wrap.style.transform=`scale(${scale})`;
+  wrap.style.left=Math.max(0,(vw-tw*scale)/2)+'px';
+  wrap.style.top =Math.max(0,(vh-th*scale)/2)+'px';
+  document.getElementById('hall-wrap').style.padding=PAD+'px';
+  const hall=document.getElementById('hall');
+  hall.style.width=HALL_W+'px'; hall.style.height=HALL_H+'px';
+}
+
+function onSizeChange(){
+  HALL_W=parseInt(document.getElementById('sw').value);
+  HALL_H=parseInt(document.getElementById('sh').value);
+  document.getElementById('sw-val').textContent=HALL_W;
+  document.getElementById('sh-val').textContent=HALL_H;
+  applyScale();
+  doors.forEach(d=>applyDoorPos(d.el,d));
+}
+
+/* ═══ MODE ═══ */
+function setMode(m){
+  mode=m;
+  if(m!=='select'){clearSelection();}
+  ['drag','select','delete'].forEach(id=>{
+    const b=document.getElementById('btn-'+id);
+    b.className=b.dataset.cls||'';
+  });
+  document.getElementById('btn-drag').className   =(m==='drag')  ?'primary':'';
+  document.getElementById('btn-select').className =(m==='select')?'primary':'';
+  document.getElementById('btn-delete').className =(m==='delete')?'danger':'danger';
+  const badge=document.getElementById('mode-label');
+  const map={drag:'drag-mode',select:'select-mode',delete:'delete-mode'};
+  const lbl={drag:'Taşıma',select:'Seçim',delete:'Silme'};
+  badge.className='mode-badge '+map[m]; badge.textContent=lbl[m]+' Modu';
+  document.querySelectorAll('.desk,.door').forEach(el=>{
+    m==='delete'?el.classList.add('delete-target'):el.classList.remove('delete-target');
+  });
+  updateAlignButtons();
+}
+
+/* ═══ SELECTION ═══ */
+function clearSelection(){
+  selected.forEach(id=>{
+    const d=desks.find(d=>d.id===id);
+    if(d)d.el.classList.remove('selected');
+  });
+  selected.clear();
+  updateAlignButtons();
+}
+
+function toggleSelect(id,el,add){
+  if(add===undefined) add=!selected.has(id);
+  if(add){selected.add(id);el.classList.add('selected');}
+  else{selected.delete(id);el.classList.remove('selected');}
+  updateAlignButtons();
+}
+
+function updateAlignButtons(){
+  const n=selected.size;
+  document.getElementById('sel-count').textContent=n+' seçili';
+  document.getElementById('sel-count').className=n>0?'show':'';
+  const needTwo=n>=2;
+  ['ab-left','ab-hcenter','ab-right','ab-top','ab-vcenter','ab-bottom','ab-hdist','ab-vdist']
+    .forEach(id=>{
+      const b=document.getElementById(id);
+      const needsTwo=['ab-hdist','ab-vdist'].includes(id);
+      b.disabled=(needsTwo?n<3:n<2);
+    });
+}
+
+/* ═══ ALIGNMENT ═══ */
+function align(type){
+  const sel=desks.filter(d=>selected.has(d.id));
+  if(sel.length<2)return;
+  const xs=sel.map(d=>parseInt(d.el.style.left));
+  const ys=sel.map(d=>parseInt(d.el.style.top));
+  const minX=Math.min(...xs), maxX=Math.max(...xs);
+  const minY=Math.min(...ys), maxY=Math.max(...ys);
+
+  sel.forEach(d=>{
+    let x=parseInt(d.el.style.left), y=parseInt(d.el.style.top);
+    if(type==='left')    x=minX;
+    if(type==='right')   x=maxX;
+    if(type==='hcenter') x=Math.round((minX+maxX)/2);
+    if(type==='top')     y=minY;
+    if(type==='bottom')  y=maxY;
+    if(type==='vcenter') y=Math.round((minY+maxY)/2);
+    d.el.style.left=x+'px'; d.el.style.top=y+'px';
+  });
+
+  if(type==='hdist'&&sel.length>=3){
+    const sorted=[...sel].sort((a,b)=>parseInt(a.el.style.left)-parseInt(b.el.style.left));
+    const gap=(parseInt(sorted[sorted.length-1].el.style.left)-parseInt(sorted[0].el.style.left))/(sorted.length-1);
+    const startX=parseInt(sorted[0].el.style.left);
+    sorted.forEach((d,i)=>{ d.el.style.left=Math.round(startX+i*gap)+'px'; });
+  }
+  if(type==='vdist'&&sel.length>=3){
+    const sorted=[...sel].sort((a,b)=>parseInt(a.el.style.top)-parseInt(b.el.style.top));
+    const gap=(parseInt(sorted[sorted.length-1].el.style.top)-parseInt(sorted[0].el.style.top))/(sorted.length-1);
+    const startY=parseInt(sorted[0].el.style.top);
+    sorted.forEach((d,i)=>{ d.el.style.top=Math.round(startY+i*gap)+'px'; });
+  }
+}
+
+/* ═══ DOOR POSITION ═══ */
+function doorPos(door){
+  const w=HALL_W,h=HALL_H;
+  if(door.wall==='top')    return{x:door.pct*w-DOOR_H_W/2,y:-DOOR_H_H/2,horiz:true};
+  if(door.wall==='bottom') return{x:door.pct*w-DOOR_H_W/2,y:h-DOOR_H_H/2,horiz:true};
+  if(door.wall==='left')   return{x:-DOOR_V_W/2,y:door.pct*h-DOOR_V_H/2,horiz:false};
+  if(door.wall==='right')  return{x:w-DOOR_V_W/2,y:door.pct*h-DOOR_V_H/2,horiz:false};
+}
+function applyDoorPos(el,door){
+  const p=doorPos(door);
+  el.className='door '+(door.type==='main'?'door-main':'door-side')+' '+(p.horiz?'door-h':'door-v')+(mode==='delete'?' delete-target':'');
+  el.style.width=(p.horiz?DOOR_H_W:DOOR_V_W)+'px';
+  el.style.height=(p.horiz?DOOR_H_H:DOOR_V_H)+'px';
+  el.style.fontSize=DOOR_FONT+'px';
+  el.style.left=p.x+'px'; el.style.top=p.y+'px';
+}
+
+/* ═══ RENDER DESK ═══ */
+function renderDesk(item){
+  const hall=document.getElementById('hall');
+  const el=document.createElement('div');
+  el.className='desk'+(mode==='delete'?' delete-target':'');
+  el.style.background=COLORS[item.fac].bg;
+  el.style.width=DW+'px'; el.style.height=DH+'px';
+  el.style.fontSize=DFONT+'px';
+  el.style.left=item.x+'px'; el.style.top=item.y+'px';
+  el.textContent=item.label;
+
+  el.addEventListener('mousedown',e=>{
+    if(mode==='delete'){deleteDesk(item.id);return;}
+    if(mode==='select'){
+      // Ctrl veya Shift → çoklu seçim; yoksa tek seçim + sürükleme
+      if(!e.ctrlKey&&!e.shiftKey&&!selected.has(item.id)){clearSelection();}
+      toggleSelect(item.id,el,true);
+      startGroupDrag(e);
+      return;
+    }
+    // drag mode
+    startDragDesk(e,el);
+  });
+  el.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    if(mode==='delete'){deleteDesk(item.id);return;}
+    if(mode==='select'){
+      if(!selected.has(item.id)){clearSelection();}
+      toggleSelect(item.id,el,true);
+      startGroupDrag(e);
+      return;
+    }
+    startDragDesk(e,el);
+  },{passive:false});
+
+  hall.appendChild(el);
+  item.el=el; desks.push(item);
+}
+
+function deleteDesk(id){
+  pushUndo();
+  const i=desks.findIndex(d=>d.id===id);
+  if(i===-1)return;
+  selected.delete(id);
+  desks[i].el.remove(); desks.splice(i,1);
+  updateAlignButtons();
+}
+
+/* ═══ RENDER DOOR ═══ */
+function renderDoor(door){
+  const hall=document.getElementById('hall');
+  const el=document.createElement('div');
+  el.textContent=door.label;
+  applyDoorPos(el,door);
+  el.addEventListener('mousedown',e=>{if(mode==='delete'){deleteDoor(door.id);return;}startDragDoor(e,door,el);});
+  el.addEventListener('touchstart',e=>{e.preventDefault();if(mode==='delete'){deleteDoor(door.id);return;}startDragDoor(e,door,el);},{passive:false});
+  hall.appendChild(el);
+  door.el=el; doors.push(door);
+}
+function deleteDoor(id){
+  pushUndo();
+  const i=doors.findIndex(d=>d.id===id);
+  if(i===-1)return;
+  doors[i].el.remove(); doors.splice(i,1);
+}
+function addDoor(type){
+  pushUndo();
+  const walls=['top','bottom','left','right'];
+  renderDoor({id:'door-'+Date.now(),label:type==='main'?'ANA GİRİŞ':'YAN KAPI',type,wall:walls[~~(Math.random()*4)],pct:.35});
+}
+
+/* ═══ ADD DESK MODAL ═══ */
+function openAddDeskModal(){document.getElementById('modal-overlay').classList.add('open');}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open');}
+function confirmAddDesk(){
+  const label=document.getElementById('modal-name').value.trim();
+  const fac=document.getElementById('modal-fac').value;
+  if(!label){alert('Masa adı boş olamaz.');return;}
+  pushUndo();
+  renderDesk({id:'d'+Date.now(),label,fac,x:120,y:120});
+  closeModal();
+  document.getElementById('modal-name').value='';
+}
+
+/* ═══ DRAG ═══ */
+function evPos(e){return e.touches?{x:e.touches[0].clientX,y:e.touches[0].clientY}:{x:e.clientX,y:e.clientY};}
+
+function hallDesignCoords(e){
+  const r=document.getElementById('hall').getBoundingClientRect();
+  const pos=evPos(e);
+  return{x:(pos.x-r.left)/scale, y:(pos.y-r.top)/scale};
+}
+
+/* --- tekli masa sürükleme (drag modu) --- */
+function startDragDesk(e,el){
+  dragging={el};dragType='desk';el.classList.add('dragging');
+  const pos=evPos(e),r=el.getBoundingClientRect();
+  offsetX=(pos.x-r.left)/scale;
+  offsetY=(pos.y-r.top)/scale;
+  bindDrag();
+}
+
+/* --- grup sürükleme (seçim modu) --- */
+function startGroupDrag(e){
+  dragType='group';
+  const {x,y}=hallDesignCoords(e);
+  // seçili masaların başlangıç ofsetlerini sakla
+  groupStart={mx:x,my:y,origins:{}};
+  desks.filter(d=>selected.has(d.id)).forEach(d=>{
+    groupStart.origins[d.id]={x:parseInt(d.el.style.left),y:parseInt(d.el.style.top)};
+    d.el.classList.add('dragging');
+  });
+  bindDrag();
+}
+
+/* --- kapı sürükleme --- */
+function startDragDoor(e,door,el){
+  dragging={door,el};dragType='door';el.classList.add('dragging');
+  bindDrag();
+}
+
+function snapWall(dx,dy){
+  const w=HALL_W,h=HALL_H;
+  const d={top:dy,bottom:h-dy,left:dx,right:w-dx};
+  const wall=Object.entries(d).sort((a,b)=>a[1]-b[1])[0][0];
+  const pct=(wall==='top'||wall==='bottom')?Math.max(.05,Math.min(.95,dx/w)):Math.max(.05,Math.min(.95,dy/h));
+  return{wall,pct};
+}
+
+function bindDrag(){
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+  document.addEventListener('touchmove',onTouchMove,{passive:false});
+  document.addEventListener('touchend',onUp);
+}
+
+function onMove(e){
+  const {x:dx,y:dy}=hallDesignCoords(e);
+
+  if(dragType==='desk'&&dragging){
+    dragging.el.style.left=Math.max(0,Math.min(dx-offsetX,HALL_W-DW))+'px';
+    dragging.el.style.top =Math.max(0,Math.min(dy-offsetY,HALL_H-DH))+'px';
+  }
+  else if(dragType==='group'&&groupStart){
+    const ddx=dx-groupStart.mx, ddy=dy-groupStart.my;
+    desks.filter(d=>selected.has(d.id)).forEach(d=>{
+      const o=groupStart.origins[d.id];
+      d.el.style.left=Math.max(0,Math.min(o.x+ddx,HALL_W-DW))+'px';
+      d.el.style.top =Math.max(0,Math.min(o.y+ddy,HALL_H-DH))+'px';
+    });
+  }
+  else if(dragType==='door'&&dragging){
+    const snap=snapWall(dx,dy);
+    dragging.door.wall=snap.wall; dragging.door.pct=snap.pct;
+    applyDoorPos(dragging.el,dragging.door);
+  }
+  else if(dragType==='rubber'&&rubber){
+    updateRubber(dx,dy);
+  }
+}
+function onTouchMove(e){e.preventDefault();onMove(e);}
+function onUp(e){
+  const wasDragging = dragType==='desk'||dragType==='group'||dragType==='door';
+  if(dragType==='group'){
+    desks.forEach(d=>d.el.classList.remove('dragging'));
+    groupStart=null;
+  }else if(dragType==='rubber'){
+    finishRubber();
+  }else if(dragging){
+    dragging.el.classList.remove('dragging');
+    dragging=null;
+  }
+  if(wasDragging) pushUndo();
+  dragType=null;
+  document.removeEventListener('mousemove',onMove);
+  document.removeEventListener('mouseup',onUp);
+  document.removeEventListener('touchmove',onTouchMove);
+  document.removeEventListener('touchend',onUp);
+}
+
+/* ═══ RUBBER-BAND SEÇİM ═══ */
+function startRubber(e){
+  const {x,y}=hallDesignCoords(e);
+  rubber={sx:x,sy:y};
+  dragType='rubber';
+  const sr=document.getElementById('sel-rect');
+  sr.style.display='block';
+  sr.style.left=x+'px'; sr.style.top=y+'px';
+  sr.style.width='0'; sr.style.height='0';
+  bindDrag();
+}
+function updateRubber(cx,cy){
+  const sr=document.getElementById('sel-rect');
+  const x=Math.min(rubber.sx,cx), y=Math.min(rubber.sy,cy);
+  const w=Math.abs(cx-rubber.sx), h=Math.abs(cy-rubber.sy);
+  sr.style.left=x+'px'; sr.style.top=y+'px';
+  sr.style.width=w+'px'; sr.style.height=h+'px';
+}
+function finishRubber(){
+  const sr=document.getElementById('sel-rect');
+  const rx=parseInt(sr.style.left),ry=parseInt(sr.style.top);
+  const rw=parseInt(sr.style.width),rh=parseInt(sr.style.height);
+  sr.style.display='none';
+  if(rw<5&&rh<5){rubber=null;return;}
+  clearSelection();
+  desks.forEach(d=>{
+    const dx=parseInt(d.el.style.left),dy=parseInt(d.el.style.top);
+    if(dx>=rx&&dy>=ry&&dx+DW<=rx+rw&&dy+DH<=ry+rh){
+      toggleSelect(d.id,d.el,true);
+    }
+  });
+  rubber=null;
+}
+
+/* ═══ HALL mousedown → rubber band ═══ */
+document.getElementById('hall').addEventListener('mousedown',e=>{
+  if(mode!=='select')return;
+  if(e.target!==document.getElementById('hall'))return; // masaya tıklanmadıysa
+  clearSelection();
+  startRubber(e);
+});
+
+/* ═══ LEGEND ═══ */
+function renderLegend(){
+  const leg=document.getElementById('legend-bar');
+  Object.values(COLORS).forEach(v=>{
+    const it=document.createElement('div');it.className='legend-item';
+    it.innerHTML=`<div class="legend-dot" style="background:${v.bg}"></div><span>${v.label}</span>`;
+    leg.appendChild(it);
+  });
+  [{bg:'#e31837',label:'Ana Giriş'},{bg:'#00205b',label:'Yan Kapı'}].forEach(v=>{
+    const it=document.createElement('div');it.className='legend-item';
+    it.innerHTML=`<div class="legend-dot" style="background:${v.bg};border-radius:2px"></div><span>${v.label}</span>`;
+    leg.appendChild(it);
+  });
+  // hizalama kılavuzu
+  const guide=document.createElement('div');guide.className='legend-item';
+  guide.innerHTML=`<div class="legend-dot" style="background:#f0a800;border-radius:2px"></div><span>Seçili Masa</span>`;
+  leg.appendChild(guide);
+}
+
+/* ═══ RESET ═══ */
+function resetLayout(){
+  document.getElementById('hall').innerHTML='<div id="sel-rect"></div>';
+  desks=[];doors=[];selected=new Set();
+  HALL_W=800;HALL_H=560;
+  document.getElementById('sw').value=HALL_W;
+  document.getElementById('sh').value=HALL_H;
+  document.getElementById('sw-val').textContent=HALL_W;
+  document.getElementById('sh-val').textContent=HALL_H;
+  reBindHall();
+  init(DEFAULT_DESKS,DEFAULT_DOORS);
+  applyScale();
+  setMode('drag');
+}
+
+function reBindHall(){
+  document.getElementById('hall').addEventListener('mousedown',e=>{
+    if(mode!=='select')return;
+    if(e.target!==document.getElementById('hall'))return;
+    clearSelection();startRubber(e);
+  });
+}
+
+/* ═══ SAVE AS HTML — VIEWER ONLY ═══
+   İndirilen dosya tamamen salt-okunur / görüntüleme modundadır.
+   Toolbar, modal, JS etkileşimi çıkarılır; saf statik HTML+CSS üretilir.
+════════════════════════════════════════ */
+function saveAsHTML(){
+  const deskState=desks.map(d=>({id:d.id,label:d.label,fac:d.fac,x:parseInt(d.el.style.left),y:parseInt(d.el.style.top)}));
+  const doorState=doors.map(d=>({id:d.id,label:d.label,type:d.type,wall:d.wall,pct:d.pct}));
+
+  /* Renk haritası */
+  const CMAP={
+    eng:'#2980b9',iibf:'#27ae60',arch:'#f39c12',
+    lit:'#8e44ad',law:'#c0392b',med:'#16a085',lang:'#7f8c8d'
+  };
+  const CLABEL={
+    eng:'Mühendislik',iibf:'İİBF',arch:'Mimarlık ve Tasarım',
+    lit:'Fen Edebiyat',law:'Hukuk Fakültesi',med:'Tıp Fakültesi',lang:'Yabancı Dil'
+  };
+
+  /* Kapı konumu hesapla */
+  const DH_W=90,DH_H=26,DV_W=26,DV_H=84;
+  function doorPosStatic(door){
+    const w=HALL_W,h=HALL_H;
+    if(door.wall==='top')    return{x:door.pct*w-DH_W/2,y:-DH_H/2,horiz:true};
+    if(door.wall==='bottom') return{x:door.pct*w-DH_W/2,y:h-DH_H/2,horiz:true};
+    if(door.wall==='left')   return{x:-DV_W/2,y:door.pct*h-DV_H/2,horiz:false};
+    if(door.wall==='right')  return{x:w-DV_W/2,y:door.pct*h-DV_H/2,horiz:false};
+  }
+
+  /* Masalar HTML */
+  const desksHTML=deskState.map(d=>`
+    <div style="position:absolute;left:${d.x}px;top:${d.y}px;width:100px;height:60px;
+      background:${CMAP[d.fac]};color:#fff;font-weight:700;font-size:11px;
+      border-radius:6px;display:flex;align-items:center;justify-content:center;
+      text-align:center;padding:4px;box-shadow:0 2px 6px rgba(0,0,0,.18);">
+      ${d.label}
+    </div>`).join('');
+
+  /* Kapılar HTML */
+  const doorsHTML=doorState.map(d=>{
+    const p=doorPosStatic(d);
+    const bg=d.type==='main'?'#e31837':'#00205b';
+    const w=p.horiz?DH_W:DV_W, h=p.horiz?DH_H:DV_H;
+    const writing=p.horiz?'horizontal-tb':'vertical-rl';
+    return `<div style="position:absolute;left:${p.x}px;top:${p.y}px;
+      width:${w}px;height:${h}px;background:${bg};color:#fff;
+      font-size:9.5px;font-weight:800;border-radius:4px;
+      display:flex;align-items:center;justify-content:center;
+      writing-mode:${writing};letter-spacing:.3px;">${d.label}</div>`;
+  }).join('');
+
+  /* Legend */
+  const usedFacs=[...new Set(deskState.map(d=>d.fac))];
+  const legendHTML=usedFacs.map(f=>`
+    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#555;">
+      <div style="width:11px;height:11px;border-radius:3px;background:${CMAP[f]};flex-shrink:0;"></div>
+      <span>${CLABEL[f]}</span>
+    </div>`).join('')+`
+    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#555;">
+      <div style="width:11px;height:11px;border-radius:2px;background:#e31837;flex-shrink:0;"></div>
+      <span>Ana Giriş</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#555;">
+      <div style="width:11px;height:11px;border-radius:2px;background:#00205b;flex-shrink:0;"></div>
+      <span>Yan Kapı</span>
+    </div>`;
+
+  const PAD_V=44;
+  const viewerHTML=`<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TOBB ETÜ – Yerleşim Planı</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#d4dce6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;flex-direction:column;}
+#header{flex-shrink:0;padding:8px 14px;background:#fff;border-bottom:1px solid #d0d7de;
+  display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);}
+#header .title{font-weight:800;font-size:14px;color:#00205b;letter-spacing:-.2px;}
+#header .badge{font-size:10px;padding:3px 9px;border-radius:20px;font-weight:700;
+  background:#f0faf4;color:#1a7a40;border:1px solid #b2dfc4;}
+#viewport{flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative;}
+#scale-wrap{position:absolute;transform-origin:top left;}
+#hall-wrap{padding:${PAD_V}px;background:#bec8d2;}
+#hall{position:relative;background:#fff;border:3px solid #2c3e50;border-radius:2px;
+  width:${HALL_W}px;height:${HALL_H}px;overflow:visible;}
+#legend-bar{flex-shrink:0;display:flex;flex-wrap:wrap;gap:6px;padding:5px 12px;
+  background:#fff;border-top:1px solid #d0d7de;}
+</style>
+</head>
+<body>
+<div id="header">
+  <span class="title">TOBB ETÜ Yerleşim Planı</span>
+  <span class="badge">📋 Salt Okunur</span>
+</div>
+<div id="viewport">
+  <div id="scale-wrap">
+    <div id="hall-wrap">
+      <div id="hall">
+        ${desksHTML}
+        ${doorsHTML}
+      </div>
+    </div>
+  </div>
+</div>
+<div id="legend-bar">${legendHTML}</div>
+<script>
+(function(){
+  var PAD=${PAD_V}, W=${HALL_W}, H=${HALL_H};
+  function fit(){
+    var vp=document.getElementById('viewport');
+    var vw=vp.clientWidth, vh=vp.clientHeight;
+    var tw=W+PAD*2, th=H+PAD*2;
+    var s=Math.max(.15,Math.min((vw*.96)/tw,(vh*.96)/th));
+    var wrap=document.getElementById('scale-wrap');
+    wrap.style.width=tw+'px'; wrap.style.height=th+'px';
+    wrap.style.transform='scale('+s+')';
+    wrap.style.left=Math.max(0,(vw-tw*s)/2)+'px';
+    wrap.style.top=Math.max(0,(vh-th*s)/2)+'px';
+  }
+  fit();
+  window.addEventListener('resize',fit);
+})();
+<\/script>
+</body>
+</html>`;
+
+  const blob=new Blob([viewerHTML],{type:'text/html;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='tobb-etu-yerlesim-plan.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  const msg=document.getElementById('save-msg');
+  msg.classList.add('show');setTimeout(()=>msg.classList.remove('show'),2500);
+}
+
+/* ═══ INIT ═══ */
+function init(deskData,doorData){
+  deskData.forEach(d=>renderDesk({...d}));
+  doorData.forEach(d=>renderDoor({...d}));
+}
+
+/* ═══ BOOT ═══ */
+document.getElementById('sw-val').textContent=HALL_W;
+document.getElementById('sh-val').textContent=HALL_H;
+init(DEFAULT_DESKS,DEFAULT_DOORS);
+renderLegend();
+applyScale();
+setMode('drag');
+updateAlignButtons();
+updateUndoButtons();
+window.addEventListener('resize',applyScale);
+
+/* ═══ KLAVYE KISAYOLLARI ═══ */
+document.addEventListener('keydown',e=>{
+  // Modal açıkken kısayolları devre dışı bırak
+  if(document.getElementById('modal-overlay').classList.contains('open')) return;
+  const ctrl=e.ctrlKey||e.metaKey;
+  if(ctrl&&e.key==='z'&&!e.shiftKey){ e.preventDefault(); undo(); return; }
+  if(ctrl&&(e.key==='y'||(e.key==='z'&&e.shiftKey))){ e.preventDefault(); redo(); return; }
+  if(e.key==='Delete'||e.key==='Backspace'){
+    if(mode==='select'&&selected.size>0){
+      pushUndo();
+      [...selected].forEach(id=>{ const i=desks.findIndex(d=>d.id===id); if(i!==-1){desks[i].el.remove();desks.splice(i,1);} });
+      selected.clear(); updateAlignButtons();
+    }
+  }
+  if(e.key==='Escape'){ setMode('drag'); }
+  if(ctrl&&e.key==='a'){
+    e.preventDefault();
+    setMode('select');
+    desks.forEach(d=>toggleSelect(d.id,d.el,true));
+  }
+});
+</script>
+</body>
+</html>
